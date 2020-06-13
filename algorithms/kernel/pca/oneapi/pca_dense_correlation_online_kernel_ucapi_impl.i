@@ -124,6 +124,8 @@ Status PCACorrelationKernelOnlineUCAPI<algorithmFPType>::finalize(PartialResult<
     }
 
     data_management::NumericTablePtr correlation = parameter->covariance->getResult()->get(covariance::covariance);
+
+    DAAL_ITTNOTIFY_SCOPED_TASK(finalize.computeEigenvalues);
     DAAL_CHECK_STATUS_VAR(_host_impl->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues));
 
     return services::Status();

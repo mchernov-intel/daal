@@ -29,6 +29,8 @@
 #include "service/kernel/data_management/service_numeric_table.h"
 #include "algorithms/kernel/pca/pca_dense_correlation_online_kernel.h"
 
+#include "externals/service_ittnotify.h"
+
 namespace daal
 {
 namespace algorithms
@@ -42,10 +44,16 @@ services::Status PCACorrelationKernel<online, algorithmFPType, cpu>::compute(con
                                                                              PartialResult<correlationDense> * partialResult,
                                                                              const OnlineParameter<algorithmFPType, correlationDense> * parameter)
 {
+    DAAL_ITTNOTIFY_SCOPED_TASK(PCA.online.compute);
     parameter->covariance->input.set(covariance::data, pData);
     parameter->covariance->parameter.outputMatrixType = covariance::correlationMatrix;
 
-    services::Status s = parameter->covariance->computeNoThrow();
+    services::Status s;
+    {
+        DAAL_ITTNOTIFY_SCOPED_TASK(PCA.online.compute.covariance);
+        s = parameter->covariance->computeNoThrow();
+    }
+
     if (s) s = copyCovarianceResultToPartialResult(parameter->covariance->getPartialResult().get(), partialResult);
     return s;
 }
@@ -56,11 +64,20 @@ services::Status PCACorrelationKernel<online, algorithmFPType, cpu>::finalize(Pa
                                                                               data_management::NumericTable & eigenvectors,
                                                                               data_management::NumericTable & eigenvalues)
 {
-    services::Status s = parameter->covariance->finalizeCompute();
-    if (!s) return s;
+    DAAL_ITTNOTIFY_SCOPED_TASK(PCA.online.finalize);
 
+    services::Status s;
+    {
+        DAAL_ITTNOTIFY_SCOPED_TASK(PCA.online.compute.finalizeCovariance);
+        s = parameter->covariance->finalizeCompute();
+    }
     data_management::NumericTablePtr correlation = parameter->covariance->getResult()->get(covariance::covariance);
-    return this->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues);
+
+    if (!s) return s;
+    {
+        DAAL_ITTNOTIFY_SCOPED_TASK(PCA.online.compute.correlation.eigenvalues);
+        return this->computeCorrelationEigenvalues(*correlation, eigenvectors, eigenvalues);
+    }
 }
 
 template <typename algorithmFPType, CpuType cpu>
